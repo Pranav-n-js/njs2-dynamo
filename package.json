@@ -15,5 +15,8 @@
   "scripts": {
     "postinstall": "node ./postinstall.js --init-dir $INIT_CWD"
   },
-  "loadEnv": true
+  "loadEnv": true,
+  "devDependencies": {
+    "aws-sdk": "^2.1486.0"
+  }
 }
