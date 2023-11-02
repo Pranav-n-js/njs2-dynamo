@@ -1,6 +1,6 @@
 const createModel = require('./interface/createModel');
 const createSchema = require('./interface/createSchema');
-
+const Schema = require('./interface/Schema');
 class DYNAMOManager {
   /**
    * Database Create Schema
@@ -8,7 +8,7 @@ class DYNAMOManager {
    * @param {Object} collectionStructure
    * @returns {Promise<Number>}
    */
-  static createSchema = createSchema();
+  static createSchema = createSchema;
 
   /**
    * Database Create Model
@@ -18,7 +18,9 @@ class DYNAMOManager {
    * @param {string} collectionNameInDb
    * @returns {Promise<Object>}
    */
-  static createModel = createModel();
+  static createModel = createModel;
+
+  static createSchema = Schema;
 }
 
 module.exports = DYNAMOManager;
