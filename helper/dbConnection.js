@@ -1,36 +1,32 @@
-module.exports.getConnection = () => {
-  try {
 
-    const dynamoose = require('dynamoose');
+module.exports.connection = (aws) => {
 
-    let envVariables = typeof process.env['@njs2-dynamo'] == 'object' ? process.env['@njs2-dynamo'] : JSON.parse(process.env['@njs2-dynamo']);
-
-    if (!envVariables) {
-      return false;
-    }
-
-    const connectionParams = {};
-
-    if (envVariables.LOCAL_DB === true) {
-      console.log(true);
-      return dynamoose.aws.ddb.local(envVariables.LOCAL_PORT);
-    }
-
-    if (envVariables.USE_IAM_ROLE === false) {
-      connectionParams = {
-        credentials: {
-          accessKeyId: envVariables.AWS_ACCESS_KEY_ID,
-          secretAccessKey: envVariables.AWS_SECRET_ACCESS_KEY
-        },
-        region: envVariables.AWS_REGION
-      }
-      const ddb = new dynamoose.aws.ddb.DynamoDB(connectionParams);
-      return dynamoose.aws.ddb.set(ddb);
-    }
-    return dynamoose;
-
-  } catch (error) {
-    console.log('Error: @njs2/dynamo', error);
-    throw new Error(error);
+  if (!process.env['@njs2/dynamo']) {
+    throw new Error ('REQUIRED @njs2-dynamo in environment variable');
   }
+
+  let envVariables = typeof process.env['@njs2/dynamo'] == 'object' ? process.env['@njs2/dynamo'] : JSON.parse(process.env['@njs2/dynamo']);
+
+  if (!envVariables.USE_IAM_ROLE || envVariables.LOCAL_DB) {
+
+    if (!envVariables.AWS_REGION) {
+      throw new Error("AWS_REGION must be defined");
+    }
+
+    if (!envVariables.AWS_ACCESS_KEY_ID) {
+      throw new Error("AWS_ACCESS_KEY_ID must be defined");
+    }
+
+    if (!envVariables.AWS_SECRET_ACCESS_KEY) {
+      throw new Error("AWS_SECRET_ACCESS_KEY must be defined");
+    }
+  }
+
+  aws.config.update({
+    region: envVariables.AWS_REGION,
+    accessKeyId: envVariables.AWS_ACCESS_KEY_ID,
+    secretAccessKey: envVariables.AWS_SECRET_ACCESS_KEY,
+    endpoint: envVariables.LOCAL_HOST,
+  });
+
 }

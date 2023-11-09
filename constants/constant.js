@@ -10,7 +10,7 @@ constants.KEY_TYPE = {
 constants.ATTRIBUTE_TYPE = {
     STRING: 'S',
     NUMBER: 'N',
-    Binary: 'B',
+    BINARY: 'B',
     BOOL: 'BOOL',
     NULL: 'NULL',
     MAP: 'M',
