@@ -1,9 +1,11 @@
 const { BILLING_MODE, KEY_TYPE, ATTRIBUTE_TYPE } = require('../constants/constant');
 const { DataHelper } = require('../helper/dataHelper');
+const { generateUpdateExpression } = require('../helper/expressionHelper');
 
 const AWS = require('aws-sdk');
 
 class Schema {
+
     constructor(name, schema, billingMode = BILLING_MODE.PAY_REQUEST, provisionedThroughput = { readCapacity: 0, writeCapacity: 0 }) {
 
         /* This is the Table name which is used */
@@ -40,13 +42,14 @@ class Schema {
             ReadCapacityUnits: provisionedThroughput.readCapacity,
             WriteCapacityUnits: provisionedThroughput.writeCapacity
         };
+
         if (!process.env['@njs2/dynamo']) {
             throw new Error('REQUIRED @njs2-dynamo in environment variable');
         }
         let envVariables = typeof process.env['@njs2/dynamo'] == 'object' ? process.env['@njs2/dynamo'] : JSON.parse(process.env['@njs2/dynamo']);
 
         this.endpoint = envVariables.LOCAL_HOST;
-        this.region = envVariables.region;
+        this.region = envVariables.AWS_REGION;
     }
 
     connection() {
@@ -73,22 +76,24 @@ class Schema {
         }
 
         AWS.config.update({
-            region: envVariables.AWS_REGION,
-            accessKeyId: envVariables.AWS_ACCESS_KEY_ID,
-            secretAccessKey: envVariables.AWS_SECRET_ACCESS_KEY,
-            endpoint: envVariables.LOCAL_HOST,
+            region: this.region
         });
-    }
 
+        const dynamoDBParams = {};
+
+        if (this.endpoint) {
+            dynamoDBParams.endpoint = new AWS.Endpoint(this.endpoint);
+        }
+        const DynamoDB = new AWS.DynamoDB(dynamoDBParams);
+
+        const DynamoDBClient = new AWS.DynamoDB.DocumentClient(dynamoDBParams);
+
+        return { DynamoDB, DynamoDBClient }
+    }
     CreateTable = async () => {
         try {
-            AWS.config.update({
-                region: "local"
-            });
-            const DynamoDB = new AWS.DynamoDB({
-                endpoint: new AWS.Endpoint('http://localhost:8000')
-            });
-            // this.connection();
+
+            const { DynamoDB } = this.connection();
             const KeySchema = [], AttributeDefinitions = [];
 
             for (const key in this.schema) {
@@ -126,8 +131,8 @@ class Schema {
 
             while (status === "CREATING") {
                 data = await this.DescribeTable();
-                console.log({ data });
-                if (data?.TableStatus === "ACTIVE") {
+
+                if (data?.Table?.TableStatus === "ACTIVE") {
                     console.log("Making status as ACTIVE");
                     status = "ACTIVE"
                 }
@@ -141,13 +146,7 @@ class Schema {
     }
 
     DescribeTable = async () => {
-        AWS.config.update({
-            region: "local"
-        });
-        const DynamoDB = new AWS.DynamoDB({
-            endpoint: new AWS.Endpoint('http://localhost:8000')
-        });
-        this.connection();
+        const { DynamoDB } = await this.connection();
 
         return await DynamoDB.describeTable({
             TableName: this.name
@@ -155,26 +154,181 @@ class Schema {
     }
 
     InsertItem = async (data) => {
-        const items = {};
-        AWS.config.update({
-            region: "local"
-        });
-        const DynamoDB = new AWS.DynamoDB({
-            endpoint: new AWS.Endpoint(this.endpoint)
-        });
-
-        /*
-            To insert data just pass column name as key and value is output.
-         */
-        const item = DataHelper(data, this.schema);
-        return await DynamoDB.putItem({
-            TableName: this.name,
-            Item: item
-        }).promise();
+        try {
+            const { DynamoDB } = this.connection();
+            const item = DataHelper(data, this.schema);
+            return await DynamoDB.putItem({
+                TableName: this.name,
+                Item: item
+            }).promise();
+        } catch (error) {
+            console.log("Error on InsertItem(): ", error);
+            throw error;
+        }
     }
 
-    scanItems = async () => {
-        
+    RawInsertItem = async (params) => {
+        try {
+            const { DynamoDB } = this.connection();
+            return await DynamoDB.putItem(params).promise();
+        } catch (error) {
+            console.log("Error on RawInsertItem()`", error);
+            throw error;
+        }
+    }
+
+    ScanItems = async (filterExpression = {}, limit = 0, lastKey = null) => {
+        try {
+            const { DynamoDB } = this.connection();
+
+            const params = {
+                TableName: this.name
+            };
+            if (lastKey != null) {
+                params.ExclusiveStartKey = lastKey;
+            }
+
+            if (limit >= 1) {
+                params.Limit = limit;
+            }
+
+            const data = await DynamoDB.scan({
+                TableName: this.name,
+            }).promise();
+
+            return {
+                items: data?.Items,
+                lastKey: data?.LastEvaluatedKey,
+                totalCount: data?.Count
+            }
+        } catch (error) {
+            console.log("Error on ScanItems:", error);
+            throw error;
+        }
+    }
+
+    RawScanItem = async (params) => {
+        try {
+            const { DynamoDBClient } = this.connection();
+            return await DynamoDBClient.scan(params).promise();
+        } catch (error) {
+            console.log("Error on RawScanItem:", error);
+            throw error;
+        }
+    }
+
+    BatchInsert = async (batchInsertData) => {
+        try {
+            let insertData = [];
+
+            insertData = batchInsertData.map((insertData) => {
+                const items = DataHelper(insertData, this.schema);
+                return {
+                    PutRequest: {
+                        Item: items
+                    }
+                }
+            });
+
+            const { DynamoDBClient, DynamoDB } = this.connection();
+
+            let startIndex = 0;
+            let endIndex = 25;
+
+            let promise = [];
+            while (insertData.length > startIndex) {
+
+                const subData = insertData.slice(startIndex, endIndex);
+
+                promise.push(DynamoDB.batchWriteItem({
+                    RequestItems: {
+                        [this.name]: subData
+                    }
+                }).promise());
+
+                startIndex += endIndex + 1;
+                endIndex += 25;
+            }
+
+            return await Promise.all(promise);
+        } catch (error) {
+            console.log("Error BatchInsert: ", error);
+            throw error;
+        }
+    }
+
+    RawBatchInsert = async (params) => {
+        try {
+            const { DynamoDB } = this.connection();
+
+            return await DynamoDB.batchWriteItem(params).promise();
+        } catch (error) {
+            console.log("Error BatchInsert: ", error);
+            throw error;
+        }
+    }
+
+    UpdateItems = async (updateData, Key) => {
+        try {
+            const { DynamoDBClient } = this.connection();
+
+            const updateKey = Object.keys(updateData);
+            const updateValue = Object.values(updateData);
+
+            if (updateKey.length != updateValue.length) {
+                throw new error('INVALID_KEY_VALUE');
+            }
+
+            const {
+                UpdateExpression,
+                ExpressionAttributeNames,
+                ExpressionAttributeValues
+            } = generateUpdateExpression(updateValue, updateKey);
+
+            return await DynamoDBClient.update({
+                TableName: this.name,
+                Key,
+                UpdateExpression,
+                ExpressionAttributeNames,
+                ExpressionAttributeValues
+            }).promise();
+        } catch (error) {
+            console.log("Error on UpdateItems: ", error);
+            throw error;
+        }
+    }
+
+    RawUpdateItems = async (params) => {
+        try {
+            const { DynamoDBClient } = this.connection();
+            return await DynamoDBClient.update(params).promise();
+        } catch (error) {
+            console.log("Error on RawUpdateItems: ", error);
+            throw error;
+        }
+    }
+
+    DeleteItems = async (key) => {
+        try {
+            const { DynamoDBClient } = this.connection();
+            return DynamoDBClient.delete({
+                TableName: this.name,
+                Key: key,
+            }).promise()
+        } catch (error) {
+            console.log("Error on DeleteItems: ", error);
+            throw error;
+        }
+    }
+
+    RawDeleteItems = async (params)=>{
+        try {
+            const { DynamoDBClient } = this.connection();
+            return DynamoDBClient.delete(params).promise()
+        } catch (error) {
+            console.log("Error on DeleteItems: ", error);
+            throw error;
+        }
     }
 }
 
