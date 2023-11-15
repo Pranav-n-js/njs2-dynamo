@@ -19,6 +19,13 @@ class Schema {
         */
         this.schema = schema;
 
+        this.primaryKey = "";
+        for (const key in this.schema) {
+            if (this.schema[key]?.KeyType === KEY_TYPE.PRIMARY_KEY) {
+                this.primaryKey = key;
+                break;
+            }
+        }
         /* Billing mode can be either Pay per request or Provisioned */
         if (billingMode !== BILLING_MODE.PAY_REQUEST && billingMode !== BILLING_MODE.PROVISIONED) {
             throw new Error(`Billing mode must be ${Object.values(BILLING_MODE)}`)
@@ -306,15 +313,14 @@ class Schema {
             const params = {
                 [this.name]: {}
             };
-            let Keys = [];
-            let primaryKey = "";
 
-            for (const key in this.schema) {
-                if (this.schema[key]?.KeyType === KEY_TYPE.PRIMARY_KEY) {
-                    primaryKey = key;
-                    break;
-                }
-            }
+            Keys = primaryKeys.map(key => {
+                return {
+                    [`#${this.primaryKey}`]: {
+                        [this.schema[this.primaryKey].AttributeType]: key
+                    }
+                };
+            });
 
             if (Keys.length > 0) {
                 params[this.name] = {
@@ -419,7 +425,11 @@ class Schema {
 
             return await DynamoDB.updateItem({
                 TableName: this.name,
-                Key,
+                Key: {
+                    [this.primaryKey]: {
+                        [this.schema[ this.primaryKey ].AttributeType]: Key
+                    }
+                },
                 UpdateExpression,
                 ExpressionAttributeNames,
                 ExpressionAttributeValues
