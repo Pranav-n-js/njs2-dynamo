@@ -472,6 +472,44 @@ class Schema {
             throw error;
         }
     }
+
+    Get = async (primaryKeyValues) => {
+        try {
+            const { DynamoDB } = this.connection();
+            const params = {};
+
+            let Keys = primaryKeyValues.map(key => {
+                return {
+                    [`#${this.primaryKey}`]: {
+                        [this.schema[this.primaryKey].AttributeType]: key
+                    }
+                };
+            })
+
+            if (Keys.length > 0) {
+                params[this.name] = {
+                    Keys: Keys
+                }
+            }
+            const data = await DynamoDB.getItem(params).promise();
+            const items = ExtractDataType(data.Item);
+
+            return items;
+        } catch (error) {
+            console.log("Error on Get: ", error);
+            throw new Error(error);
+        }
+    }
+
+    RawGet = async (params) => {
+        try {
+            const { DynamoDB } = this.connection();
+            return await DynamoDB.getItem(params).promise();
+        } catch (error) {
+            console.log("Error on RawGet: ", error);
+            throw new Error(error);
+        }
+    }
 }
 
 module.exports = Schema;
