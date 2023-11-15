@@ -139,7 +139,7 @@ class Schema {
         }).promise();
     }
 
-    InsertItem = async (data) => {
+    Insert = async (data) => {
         try {
             const { DynamoDB } = this.connection();
             const item = DataHelper(data, this.schema);
@@ -163,7 +163,7 @@ class Schema {
         }
     }
 
-    ScanItems = async (filterExpression = {}, limit = 0, lastKey = null) => {
+    Scan = async (whereEqualClause = {}, otherConditionalClause = {}, limit = 0, lastKey = null) => {
         try {
             const { DynamoDB } = this.connection();
 
@@ -235,7 +235,7 @@ class Schema {
             throw error;
         }
     }
-    QueryItems = async (whereEqualClause = {}, otherConditionalClause = {}, limit = 0, lastKey = null) => {
+    Query = async (whereEqualClause = {}, otherConditionalClause = {}, limit = 0, lastKey = null) => {
         try {
             const { DynamoDB } = this.connection();
 
@@ -327,14 +327,6 @@ class Schema {
                     Keys: Keys
                 }
             }
-            Keys = primaryKeys.map(key => {
-                return {
-                    [`#${primaryKey}`]: {
-                        [this.schema[primaryKey].AttributeType]: key
-                    }
-                };
-            })
-
             const data = (await DynamoDB.batchGetItem(params).promise()).Responses[this.name];
             const items = ExtractDataType(data);
             return items;
@@ -355,7 +347,7 @@ class Schema {
         }
     }
 
-    BatchInsert = async (batchInsertData) => {
+    BulkInsert = async (batchInsertData) => {
         try {
             let insertData = [];
 
@@ -406,7 +398,7 @@ class Schema {
         }
     }
 
-    UpdateItems = async (updateData, Key) => {
+    Update = async (updateData, Key, otherConditions = { whereEqualClause: {}, otherConditionalClause: {} }) => {
         try {
             const { DynamoDBClient } = this.connection();
 
@@ -440,7 +432,7 @@ class Schema {
         }
     }
 
-    RawUpdateItems = async (params) => {
+    RawUpdate = async (params) => {
         try {
             const { DynamoDBClient } = this.connection();
             return await DynamoDBClient.update(params).promise();
@@ -450,7 +442,7 @@ class Schema {
         }
     }
 
-    DeleteItems = async (key) => {
+    Delete = async (key) => {
         try {
             const { DynamoDBClient } = this.connection();
             return DynamoDBClient.delete({
@@ -463,7 +455,7 @@ class Schema {
         }
     }
 
-    RawDeleteItems = async (params)=>{
+    RawDelete = async (params) => {
         try {
             const { DynamoDBClient } = this.connection();
             return DynamoDBClient.delete(params).promise()
