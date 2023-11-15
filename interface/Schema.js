@@ -415,9 +415,9 @@ class Schema {
                 UpdateExpression,
                 ExpressionAttributeNames,
                 ExpressionAttributeValues
-            } = generateUpdateExpression(updateValue, updateKey);
+            } = generateUpdateExpression(updateValue, updateKey, this.schema);
 
-            return await DynamoDBClient.update({
+            return await DynamoDB.updateItem({
                 TableName: this.name,
                 Key,
                 UpdateExpression,
