@@ -161,3 +161,28 @@ module.exports.MapHelper = (data, schema) => {
 
     return mapData;
 }
+
+module.exports.ExtractDataTypeFromArray = (data) => {
+    const items = [];
+    for (const value of data) {
+        const item = this.ExtractDataType(value);
+        items.push(item);
+    }
+    return items;
+}
+
+module.exports.ExtractDataType = (data) => {
+    let items = {};
+
+    if (Array.isArray(data)) {
+        items = this.ExtractDataTypeFromArray(data);
+    }
+    else if (typeof data === 'object') {
+        items =  {};
+        for (const key in data) {
+            items[key] = Object.values(data[key])[0]
+        }
+    }
+
+    return items;
+}

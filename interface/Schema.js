@@ -1,5 +1,5 @@
 const { BILLING_MODE, KEY_TYPE } = require('../constants/constant');
-const { DataHelper } = require('../helper/dataHelper');
+const { DataHelper, ExtractDataType } = require('../helper/dataHelper');
 const { generateUpdateExpression } = require('../helper/expressionHelper');
 
 const AWS = require('aws-sdk');
@@ -206,9 +206,10 @@ class Schema {
             }
 
             const data = await DynamoDB.scan(params).promise();
+            let items = ExtractDataType(data?.Items);
 
             return {
-                items: data?.Items,
+                items: items,
                 lastKey: data?.LastEvaluatedKey,
                 totalCount: data?.Count
             }
@@ -277,13 +278,14 @@ class Schema {
 
             const data = await DynamoDB.query(params).promise();
 
+            const items = ExtractDataType(data?.Items);
             return {
-                items: data?.Items,
+                items: items,
                 lastKey: data?.LastEvaluatedKey,
                 totalCount: data?.Count
             }
         } catch (error) {
-            console.log("Error on ScanItems:", error);
+            console.log("Error on QueryItems:", error);
             throw error;
         }
     }
@@ -326,7 +328,10 @@ class Schema {
                     }
                 };
             })
-            return (await DynamoDB.batchGetItem(params).promise()).Responses;
+
+            const data = (await DynamoDB.batchGetItem(params).promise()).Responses[this.name];
+            const items = ExtractDataType(data);
+            return items;
         } catch (error) {
             console.log("Error on BulkGetItem:", error);
             throw new Error(error);
