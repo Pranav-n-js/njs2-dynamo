@@ -1,4 +1,4 @@
-const { BILLING_MODE, KEY_TYPE, ATTRIBUTE_TYPE } = require('../constants/constant');
+const { BILLING_MODE, KEY_TYPE } = require('../constants/constant');
 const { DataHelper } = require('../helper/dataHelper');
 const { generateUpdateExpression } = require('../helper/expressionHelper');
 
@@ -192,9 +192,41 @@ class Schema {
                 params.Limit = limit;
             }
 
-            const data = await DynamoDB.scan({
-                TableName: this.name,
-            }).promise();
+            const whereKeys = Object.keys(whereEqualClause);
+            const conditionalKeys = Object.keys(otherConditionalClause);
+
+            if (whereKeys.length > 0 || conditionalKeys.length > 0) {
+                params.FilterExpression = " ";
+                params.ExpressionAttributeNames = {};
+                params.ExpressionAttributeValues = {};
+            }
+
+            for (let i = 0; i < whereKeys.length; i++ ) {
+                if (this.schema[whereKeys[i]]) {
+                    params.FilterExpression += ` #k${whereKeys[i]} = :v${whereKeys[i]} `;
+                    params.ExpressionAttributeNames[`#k${whereKeys[i]}`] = whereKeys[i];
+                    params.ExpressionAttributeValues[`:v${whereKeys[i]}`] = whereEqualClause[whereKeys[i]];
+
+                    if (i <= whereKeys.length) {
+                        params.FilterExpression += " AND "
+                    }
+                }
+            }
+
+            /* Checking for conditional keys like >, <, !=  */
+            for (let i = 0; i < conditionalKeys.length; i++) {
+                if (this.schema[conditionalKeys[i]]) {
+                    params.FilterExpression += ` #k${conditionalKeys[i]} ${whereEqualClause[conditionalKeys[i]].condition} :v${conditionalKeys[i]} `;
+                    params.ExpressionAttributeNames[`#k${conditionalKeys[i]}`] = conditionalKeys[i];
+                    params.ExpressionAttributeValues[`:v${conditionalKeys[i]}`] = whereEqualClause[conditionalKeys[i]].value;
+
+                    if (i <= whereKeys.length) {
+                        params.FilterExpression += " AND "
+                    }
+                }
+            }
+
+            const data = await DynamoDB.scan(params).promise();
 
             return {
                 items: data?.Items,
