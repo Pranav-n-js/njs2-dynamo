@@ -248,6 +248,51 @@ class Schema {
             throw error;
         }
     }
+    BulkGetItem = async (primaryKeys = []) => {
+        try {
+            const { DynamoDB } = this.connection();
+            const params = {
+                [this.name]: {}
+            };
+            let Keys = [];
+            let primaryKey = "";
+
+            for (const key in this.schema) {
+                if (this.schema[key]?.KeyType === KEY_TYPE.PRIMARY_KEY) {
+                    primaryKey = key;
+                    break;
+                }
+            }
+
+            if (Keys.length > 0) {
+                params[this.name] = {
+                    Keys: Keys
+                }
+            }
+            Keys = primaryKeys.map(key => {
+                return {
+                    [`#${primaryKey}`]: {
+                        [this.schema[primaryKey].AttributeType]: key
+                    }
+                };
+            })
+            return (await DynamoDB.batchGetItem(params).promise()).Responses;
+        } catch (error) {
+            console.log("Error on BulkGetItem:", error);
+            throw new Error(error);
+        }
+    }
+
+    RawBulkGetItems = async (params) => {
+        try {
+            const { DynamoDB } = this.connection();
+
+            return await DynamoDB.batchGetItem(params).promise();
+        } catch (error) {
+            console.log("Error on RawBulkGetItems:", error);
+            throw new Error(error);
+        }
+    }
 
     BatchInsert = async (batchInsertData) => {
         try {
