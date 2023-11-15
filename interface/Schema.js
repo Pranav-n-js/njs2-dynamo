@@ -248,6 +248,77 @@ class Schema {
             throw error;
         }
     }
+    QueryItems = async (whereEqualClause = {}, otherConditionalClause = {}, limit = 0, lastKey = null) => {
+        try {
+            const { DynamoDB } = this.connection();
+
+            const params = {
+                TableName: this.name
+            };
+
+            if (lastKey != null) {
+                params.ExclusiveStartKey = lastKey;
+            }
+
+            if (limit >= 1) {
+                params.Limit = limit;
+            }
+
+            const whereKeys = Object.keys(whereEqualClause);
+            const conditionalKeys = Object.keys(otherConditionalClause);
+
+            if (whereKeys.length > 0 || conditionalKeys.length > 0) {
+                params.FilterExpression = " ";
+                params.ExpressionAttributeNames = {};
+                params.ExpressionAttributeValues = {};
+            }
+
+            for (let i = 0; i < whereKeys.length; i++) {
+                if (this.schema[whereKeys[i]]) {
+                    params.FilterExpression += ` #k${whereKeys[i]} = :v${whereKeys[i]} `;
+                    params.ExpressionAttributeNames[`#k${whereKeys[i]}`] = whereKeys[i];
+                    params.ExpressionAttributeValues[`:v${whereKeys[i]}`] = whereEqualClause[whereKeys[i]];
+
+                    if (i <= whereKeys.length) {
+                        params.FilterExpression += " AND "
+                    }
+                }
+            }
+            for (let i = 0; i < conditionalKeys.length; i++) {
+                if (this.schema[conditionalKeys[i]]) {
+                    params.FilterExpression += ` #k${conditionalKeys[i]} ${whereEqualClause[conditionalKeys[i]].condition} :v${conditionalKeys[i]} `;
+                    params.ExpressionAttributeNames[`#k${conditionalKeys[i]}`] = conditionalKeys[i];
+                    params.ExpressionAttributeValues[`:v${conditionalKeys[i]}`] = whereEqualClause[conditionalKeys[i]].value;
+
+                    if (i <= whereKeys.length) {
+                        params.FilterExpression += " AND "
+                    }
+                }
+            }
+
+            const data = await DynamoDB.query(params).promise();
+
+            return {
+                items: data?.Items,
+                lastKey: data?.LastEvaluatedKey,
+                totalCount: data?.Count
+            }
+        } catch (error) {
+            console.log("Error on ScanItems:", error);
+            throw error;
+        }
+    }
+
+    RawQueryItem = async (params) => {
+        try {
+            const { DynamoDBClient } = this.connection();
+            return await DynamoDBClient.scan(params).promise();
+        } catch (error) {
+            console.log("Error on RawScanItem:", error);
+            throw error;
+        }
+    }
+
     BulkGetItem = async (primaryKeys = []) => {
         try {
             const { DynamoDB } = this.connection();
@@ -307,7 +378,7 @@ class Schema {
                 }
             });
 
-            const { DynamoDBClient, DynamoDB } = this.connection();
+            const { DynamoDB } = this.connection();
 
             let startIndex = 0;
             let endIndex = 25;
