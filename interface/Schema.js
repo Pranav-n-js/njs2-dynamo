@@ -19,6 +19,7 @@ class Schema {
         */
         this.schema = schema;
 
+        // KeyType - Hash is considered as Primary key. primary key is used for updates, get, BulkGet
         this.primaryKey = "";
         for (const key in this.schema) {
             if (this.schema[key]?.KeyType === KEY_TYPE.PRIMARY_KEY) {
@@ -26,15 +27,16 @@ class Schema {
                 break;
             }
         }
-        /* Billing mode can be either Pay per request or Provisioned */
+
+        /* Billing mode can be either Pay per request or Provisioned, Throwing error if its nether of these */
         if (billingMode !== BILLING_MODE.PAY_REQUEST && billingMode !== BILLING_MODE.PROVISIONED) {
             throw new Error(`Billing mode must be ${Object.values(BILLING_MODE)}`)
         }
 
         this.billingMode = billingMode;
 
+        /* For provisioned throughput required read (RCU) and write capacity units (WCU)  else 0 is assigned. */
         if (billingMode === BILLING_MODE.PROVISIONED) {
-            /* For provisioned throughput required read (RCU) and write capacity units (WCU)   */
             if (
                 !("readCapacity" in provisionedThroughput) ||
                 provisionedThroughput.readCapacity === 0 ||
@@ -50,11 +52,11 @@ class Schema {
             WriteCapacityUnits: provisionedThroughput.writeCapacity
         };
 
+        /* Connection values are being assigned here */
         if (!process.env['@njs2/dynamo']) {
             throw new Error('REQUIRED @njs2-dynamo in environment variable');
         }
         let envVariables = typeof process.env['@njs2/dynamo'] == 'object' ? process.env['@njs2/dynamo'] : JSON.parse(process.env['@njs2/dynamo']);
-
         this.endpoint = envVariables.LOCAL_HOST;
         this.region = envVariables.AWS_REGION;
     }
