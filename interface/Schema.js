@@ -78,6 +78,11 @@ class Schema {
 
         return { DynamoDB, DynamoDBClient }
     }
+
+    /**
+     * @async
+     * @description Creates DynamoDB Table
+    */
     CreateTable = async () => {
         try {
 
@@ -105,6 +110,7 @@ class Schema {
                 }
             }
 
+            // Only Hash and Range can be used for creating table
             const createdData = await DynamoDB.createTable({
                 AttributeDefinitions,
                 KeySchema,
@@ -112,8 +118,8 @@ class Schema {
                 ProvisionedThroughput: this.provisionedThroughput,
                 TableName: this.name
             }).promise();
-            console.log({ createdData });
 
+            // Sometimes while creating a table it takes time, so we need to wait till table is created.
             let status = "CREATING";
             let data;
 
@@ -133,6 +139,9 @@ class Schema {
         }
     }
 
+    /**
+     * @description Gets Table information
+     */
     DescribeTable = async () => {
         const { DynamoDB } = await this.connection();
 
@@ -144,6 +153,9 @@ class Schema {
     Insert = async (data) => {
         try {
             const { DynamoDB } = this.connection();
+            /*
+                To insert data just pass column name as key and value is output.
+             */
             const item = DataHelper(data, this.schema);
             return await DynamoDB.putItem({
                 TableName: this.name,
@@ -165,6 +177,14 @@ class Schema {
         }
     }
 
+    /**
+     *
+     * @param {{}} whereEqualClause  - KEY of the object should be same as schema key, and value should be equal to value to find. In whereEqualClause AND is used if multiple keys are used.
+     * @param {{}} otherConditionalClause - KEY of the object should be equal to schema key. And the value should be an object. Where { condition: <VALUE>, value: <KEY_VALUE> }, Here <VALUE> should be the condition like  <>, >, < etc and <KEY_VALUE> is the value for condition.
+     * @param {number} limit
+     * @param {String} lastKey
+     * @returns
+     */
     Scan = async (whereEqualClause = {}, otherConditionalClause = {}, limit = 0, lastKey = null) => {
         try {
             const { DynamoDB } = this.connection();
@@ -172,6 +192,7 @@ class Schema {
             const params = {
                 TableName: this.name
             };
+
             if (lastKey != null) {
                 params.ExclusiveStartKey = lastKey;
             }
@@ -189,7 +210,7 @@ class Schema {
                 params.ExpressionAttributeValues = {};
             }
 
-            for (let i = 0; i < whereKeys.length; i++ ) {
+            for (let i = 0; i < whereKeys.length; i++) {
                 if (this.schema[whereKeys[i]]) {
                     params.FilterExpression += ` #k${whereKeys[i]} = :v${whereKeys[i]} `;
                     params.ExpressionAttributeNames[`#k${whereKeys[i]}`] = whereKeys[i];
@@ -228,6 +249,12 @@ class Schema {
         }
     }
 
+    /**
+     * @async
+     * @param {{}} params
+     * @returns
+     * @see DynamoDBClient.scan
+     */
     RawScanItem = async (params) => {
         try {
             const { DynamoDBClient } = this.connection();
@@ -237,6 +264,15 @@ class Schema {
             throw error;
         }
     }
+
+    /**
+     *
+     * @param {{}} whereEqualClause  - KEY of the object should be same as schema key, and value should be equal to value to find. In whereEqualClause AND is used if multiple keys are used.
+     * @param {{}} otherConditionalClause - KEY of the object should be equal to schema key. And the value should be an object. Where { condition: <VALUE>, value: <KEY_VALUE> }, Here <VALUE> should be the condition like  <>, >, < etc and <KEY_VALUE> is the value for condition.
+     * @param {number} limit
+     * @param {String} lastKey
+     * @returns
+     */
     Query = async (whereEqualClause = {}, otherConditionalClause = {}, limit = 0, lastKey = null) => {
         try {
             const { DynamoDB } = this.connection();
@@ -273,6 +309,8 @@ class Schema {
                     }
                 }
             }
+
+            /* Checking for conditional keys like >, <, !=  */
             for (let i = 0; i < conditionalKeys.length; i++) {
                 if (this.schema[conditionalKeys[i]]) {
                     params.FilterExpression += ` #k${conditionalKeys[i]} ${whereEqualClause[conditionalKeys[i]].condition} :v${conditionalKeys[i]} `;
@@ -299,6 +337,12 @@ class Schema {
         }
     }
 
+    /**
+     * @async
+     * @param {{}} params
+     * @returns
+     * @see DynamoDBClient.scan
+     */
     RawQueryItem = async (params) => {
         try {
             const { DynamoDBClient } = this.connection();
@@ -402,7 +446,7 @@ class Schema {
 
     Update = async (updateData, Key, otherConditions = { whereEqualClause: {}, otherConditionalClause: {} }) => {
         try {
-            const { DynamoDBClient } = this.connection();
+            const { DynamoDB } = this.connection();
 
             const updateKey = Object.keys(updateData);
             const updateValue = Object.values(updateData);
@@ -421,7 +465,7 @@ class Schema {
                 TableName: this.name,
                 Key: {
                     [this.primaryKey]: {
-                        [this.schema[ this.primaryKey ].AttributeType]: Key
+                        [this.schema[this.primaryKey].AttributeType]: Key
                     }
                 },
                 UpdateExpression,
@@ -470,21 +514,21 @@ class Schema {
     Get = async (primaryKeyValues) => {
         try {
             const { DynamoDB } = this.connection();
-            const params = {};
+            const params = {
+                TableName: this.name
+            };
 
-            let Keys = primaryKeyValues.map(key => {
-                return {
-                    [`#${this.primaryKey}`]: {
-                        [this.schema[this.primaryKey].AttributeType]: key
+            if (primaryKeyValues) {
+                params.Key = {
+                    [`${this.primaryKey}`]: {
+                        [this.schema[this.primaryKey].AttributeType]: primaryKeyValues
                     }
-                };
-            })
-
-            if (Keys.length > 0) {
-                params[this.name] = {
-                    Keys: Keys
                 }
+                // params.ExpressionAttributeNames = {
+                //     [`#${this.primaryKey}`]: this.primaryKey
+                // }
             }
+            console.log(JSON.stringify(params));
             const data = await DynamoDB.getItem(params).promise();
             const items = ExtractDataType(data.Item);
 
