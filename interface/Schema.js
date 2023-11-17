@@ -138,7 +138,8 @@ class Schema {
 
             return data;
         } catch (error) {
-            console.log("Error creating the table", error);
+            console.log("Error creating the table", new Error(error));
+            throw new Error(error);
         }
     }
 
@@ -165,8 +166,8 @@ class Schema {
                 Item: item
             }).promise();
         } catch (error) {
-            console.log("Error on InsertItem(): ", error);
-            throw error;
+            console.log("Error on InsertItem(): ", new Error(error));
+            throw new Error(error);
         }
     }
 
@@ -175,8 +176,8 @@ class Schema {
             const { DynamoDB } = this.connection();
             return await DynamoDB.putItem(params).promise();
         } catch (error) {
-            console.log("Error on RawInsertItem()`", error);
-            throw error;
+            console.log("Error on RawInsertItem()`", new Error(error));
+            throw new Error(error);
         }
     }
 
@@ -247,8 +248,8 @@ class Schema {
                 totalCount: data?.Count
             }
         } catch (error) {
-            console.log("Error on ScanItems:", error);
-            throw error;
+            console.log("Error on Scan():", new Error(error));
+            throw new Error(error);
         }
     }
 
@@ -263,8 +264,8 @@ class Schema {
             const { DynamoDBClient } = this.connection();
             return await DynamoDBClient.scan(params).promise();
         } catch (error) {
-            console.log("Error on RawScanItem:", error);
-            throw error;
+            console.log("Error on RawScan():", new Error(error));
+            throw new Error(error);
         }
     }
 
@@ -335,8 +336,8 @@ class Schema {
                 totalCount: data?.Count
             }
         } catch (error) {
-            console.log("Error on QueryItems:", error);
-            throw error;
+            console.log("Error on Query():", new Error(error));
+            throw new Error(error);
         }
     }
 
@@ -351,8 +352,8 @@ class Schema {
             const { DynamoDBClient } = this.connection();
             return await DynamoDBClient.scan(params).promise();
         } catch (error) {
-            console.log("Error on RawScanItem:", error);
-            throw error;
+            console.log("Error on RawScan():", new Error(error));
+            throw new Error(error);
         }
     }
 
@@ -380,7 +381,7 @@ class Schema {
             const items = ExtractDataType(data);
             return items;
         } catch (error) {
-            console.log("Error on BulkGetItem:", error);
+            console.log("Error on BulkGet():", new Error(error));
             throw new Error(error);
         }
     }
@@ -391,7 +392,7 @@ class Schema {
 
             return await DynamoDB.batchGetItem(params).promise();
         } catch (error) {
-            console.log("Error on RawBulkGetItems:", error);
+            console.log("Error on RawBulk():", new Error(error));
             throw new Error(error);
         }
     }
@@ -431,19 +432,19 @@ class Schema {
 
             return await Promise.all(promise);
         } catch (error) {
-            console.log("Error BatchInsert: ", error);
-            throw error;
+            console.log("Error BulkInsert(): ",  new Error( error));
+            throw new Error(error);
         }
     }
 
-    RawBatch = async (params) => {
+    RawBulk = async (params) => {
         try {
             const { DynamoDB } = this.connection();
 
             return await DynamoDB.batchWriteItem(params).promise();
         } catch (error) {
-            console.log("Error BatchInsert: ", error);
-            throw error;
+            console.log("Error RawBulk(): ",new Error( error));
+            throw new Error(error);
         }
     }
 
@@ -476,8 +477,8 @@ class Schema {
                 ExpressionAttributeValues
             }).promise();
         } catch (error) {
-            console.log("Error on UpdateItems: ", error);
-            throw error;
+            console.log("Error on Update(): ", new Error(error));
+            throw new Error(error);
         }
     }
 
@@ -486,8 +487,8 @@ class Schema {
             const { DynamoDBClient } = this.connection();
             return await DynamoDBClient.update(params).promise();
         } catch (error) {
-            console.log("Error on RawUpdateItems: ", error);
-            throw error;
+            console.log("Error on RawUpdate(): ", new Error(error));
+            throw new Error(error);
         }
     }
 
@@ -499,8 +500,8 @@ class Schema {
                 Key: key,
             }).promise()
         } catch (error) {
-            console.log("Error on DeleteItems: ", error);
-            throw error;
+            console.log("Error on Delete(): ", new Error(error));
+            throw new Error(error);
         }
     }
 
@@ -509,8 +510,8 @@ class Schema {
             const { DynamoDBClient } = this.connection();
             return DynamoDBClient.delete(params).promise()
         } catch (error) {
-            console.log("Error on DeleteItems: ", error);
-            throw error;
+            console.log("Error on RawDelete(): ", new Error(error));
+            throw new Error(error);
         }
     }
 
@@ -537,7 +538,7 @@ class Schema {
 
             return items;
         } catch (error) {
-            console.log("Error on Get: ", error);
+            console.log("Error on Get(): ", new Error(error));
             throw new Error(error);
         }
     }
@@ -547,7 +548,7 @@ class Schema {
             const { DynamoDB } = this.connection();
             return await DynamoDB.getItem(params).promise();
         } catch (error) {
-            console.log("Error on RawGet: ", error);
+            console.log("Error on RawGet() ", new Error(error));
             throw new Error(error);
         }
     }
