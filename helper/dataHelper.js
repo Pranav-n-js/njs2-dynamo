@@ -2,7 +2,7 @@ const { ATTRIBUTE_TYPE } = require('../constants/constant');
 
 module.exports.DataHelper = (data, schema) => {
     const items = {};
-    console.log(schema);
+
     for (const keyName in data) {
 
         if (!keyName) {
@@ -71,7 +71,6 @@ module.exports.DataHelper = (data, schema) => {
             }
         }
     }
-    console.log({ items});
     return JSON.parse(JSON.stringify(items));
 }
 
