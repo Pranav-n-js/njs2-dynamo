@@ -167,7 +167,7 @@ class Schema {
         }
     }
 
-    RawInsertItem = async (params) => {
+    RawInsert = async (params) => {
         try {
             const { DynamoDB } = this.connection();
             return await DynamoDB.putItem(params).promise();
@@ -255,7 +255,7 @@ class Schema {
      * @returns
      * @see DynamoDBClient.scan
      */
-    RawScanItem = async (params) => {
+    RawScan = async (params) => {
         try {
             const { DynamoDBClient } = this.connection();
             return await DynamoDBClient.scan(params).promise();
@@ -343,7 +343,7 @@ class Schema {
      * @returns
      * @see DynamoDBClient.scan
      */
-    RawQueryItem = async (params) => {
+    RawQuery = async (params) => {
         try {
             const { DynamoDBClient } = this.connection();
             return await DynamoDBClient.scan(params).promise();
@@ -353,7 +353,7 @@ class Schema {
         }
     }
 
-    BulkGetItem = async (primaryKeys = []) => {
+    BulkGet = async (primaryKeys = []) => {
         try {
             const { DynamoDB } = this.connection();
             const params = {
@@ -382,7 +382,7 @@ class Schema {
         }
     }
 
-    RawBulkGetItems = async (params) => {
+    RawBulkGet = async (params) => {
         try {
             const { DynamoDB } = this.connection();
 
@@ -433,7 +433,7 @@ class Schema {
         }
     }
 
-    RawBatchInsert = async (params) => {
+    RawBatch = async (params) => {
         try {
             const { DynamoDB } = this.connection();
 
