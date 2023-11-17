@@ -59,12 +59,15 @@ class Schema {
         let envVariables = typeof process.env['@njs2/dynamo'] == 'object' ? process.env['@njs2/dynamo'] : JSON.parse(process.env['@njs2/dynamo']);
         this.endpoint = envVariables.LOCAL_HOST;
         this.region = envVariables.AWS_REGION;
+        this.accessKeyId = envVariables.AWS_ACCESS_KEY_ID,
+        this.secretAccessKey = envVariables.AWS_SECRET_ACCESS_KEY
     }
 
     connection() {
-
         AWS.config.update({
-            region: this.region
+            region: this.region, 
+            accessKeyId: this.accessKeyId,
+            secretAccessKey: this.secretAccessKey,
         });
 
         const dynamoDBParams = {};
