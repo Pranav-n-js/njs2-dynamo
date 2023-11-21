@@ -59,13 +59,14 @@ class Schema {
         let envVariables = typeof process.env['@njs2/dynamo'] == 'object' ? process.env['@njs2/dynamo'] : JSON.parse(process.env['@njs2/dynamo']);
         this.endpoint = envVariables.LOCAL_HOST;
         this.region = envVariables.AWS_REGION;
-        this.accessKeyId = envVariables.AWS_ACCESS_KEY_ID,
-        this.secretAccessKey = envVariables.AWS_SECRET_ACCESS_KEY
+        this.accessKeyId = envVariables.AWS_ACCESS_KEY_ID;
+        this.secretAccessKey = envVariables.AWS_SECRET_ACCESS_KEY;
+        this.isAutoTableCreated = false;
     }
 
     connection() {
         AWS.config.update({
-            region: this.region, 
+            region: this.region,
             accessKeyId: this.accessKeyId,
             secretAccessKey: this.secretAccessKey,
         });
@@ -130,8 +131,9 @@ class Schema {
                 data = await this.DescribeTable();
 
                 if (data?.Table?.TableStatus === "ACTIVE") {
-                    console.log("Making status as ACTIVE");
+                    console.log(`Making ${this.name} status as ACTIVE`);
                     status = "ACTIVE"
+                    this.AutoCreateTable = true;
                 }
                 await setTimeout(() => { }, 1000);
             }
@@ -465,6 +467,57 @@ class Schema {
                 ExpressionAttributeValues
             } = generateUpdateExpression(updateValue, updateKey, this.schema);
 
+            if (
+                otherConditions &&
+                (
+                    otherConditions.whereEqualClause ||
+                    otherConditions.otherConditionalClause
+                )
+            ) {
+
+                const conditionalExpression = {};
+                const whereKeys = Object.keys(otherConditions.whereEqualClause);
+                const conditionalKeys = Object.keys(otherConditions.otherConditionalClause);
+
+                if (whereKeys.length > 0 || conditionalKeys.length > 0) {
+                    conditionalExpression.ConditionExpression = " ";
+                    conditionalExpression.ExpressionAttributeNames = {};
+                    conditionalExpression.ExpressionAttributeValues = {};
+                }
+
+                for (let i = 0; i < whereKeys.length; i++) {
+                    if (this.schema[whereKeys[i]]) {
+                        conditionalExpression.ConditionExpression += ` #uk${whereKeys[i]} = :uv${whereKeys[i]} `;
+                        conditionalExpression.ExpressionAttributeNames[`#uk${whereKeys[i]}`] = whereKeys[i];
+                        conditionalExpression.ExpressionAttributeValues[`:uv${whereKeys[i]}`] = whereEqualClause[whereKeys[i]];
+
+                        if (i <= whereKeys.length) {
+                            conditionalExpression.ConditionExpression += " AND "
+                        }
+                    }
+                }
+
+                for (let i = 0; i < conditionalKeys.length; i++) {
+                    if (this.schema[conditionalKeys[i]]) {
+                        conditionalExpression.ConditionExpression += ` #uk${conditionalKeys[i]} ${whereEqualClause[conditionalKeys[i]].condition} :uv${conditionalKeys[i]} `;
+                        conditionalExpression.ExpressionAttributeNames[`#uk${conditionalKeys[i]}`] = conditionalKeys[i];
+                        conditionalExpression.ExpressionAttributeValues[`:uv${conditionalKeys[i]}`] = whereEqualClause[conditionalKeys[i]].value;
+
+                        if (i <= whereKeys.length) {
+                            conditionalExpression.ConditionExpression += " AND "
+                        }
+                    }
+                }
+
+                ExpressionAttributeNames = {
+                    ...ExpressionAttributeNames,
+                    ...conditionalExpression.ConditionExpression
+                };
+                ExpressionAttributeValues = {
+                    ...ExpressionAttributeValues,
+                    ...conditionalExpression.ExpressionAttributeValues
+                }
+            }
             return await DynamoDB.updateItem({
                 TableName: this.name,
                 Key: {
@@ -474,7 +527,8 @@ class Schema {
                 },
                 UpdateExpression,
                 ExpressionAttributeNames,
-                ExpressionAttributeValues
+                ExpressionAttributeValues,
+                ConditionExpression
             }).promise();
         } catch (error) {
             console.log("Error on Update(): ", new Error(error));
@@ -532,7 +586,6 @@ class Schema {
                 //     [`#${this.primaryKey}`]: this.primaryKey
                 // }
             }
-            console.log(JSON.stringify(params));
             const data = await DynamoDB.getItem(params).promise();
             const items = ExtractDataType(data.Item);
 
@@ -550,6 +603,19 @@ class Schema {
         } catch (error) {
             console.log("Error on RawGet() ", new Error(error));
             throw new Error(error);
+        }
+    }
+
+    AutoCreateTable = async() => {
+        try {
+            if (!this.isAutoTableCreated){
+                const table = await this.DescribeTable();
+                if (!table || !table.Table) {
+                    await this.CreateTable();
+                }
+            }
+        } catch (error) {
+            await this.CreateTable();
         }
     }
 }
