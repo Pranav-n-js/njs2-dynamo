@@ -4,14 +4,12 @@
   "description": "",
   "main": "index.js",
   "keywords": [],
-  "njs2-package-id": "<package-id>",
   "njs2-type": "helper",
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@njs2/base": "^2.1.0",
-    "aws-sdk": "^2.1487.0",
-    "dynamoose": "^3.2.0"
+    "aws-sdk": "^2.1487.0"
   },
   "scripts": {
     "postinstall": "node ./postinstall.js --init-dir $INIT_CWD"
