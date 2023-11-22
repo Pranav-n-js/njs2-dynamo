@@ -1,17 +1,29 @@
-const { ATTRIBUTE_TYPE } = require('../constants/constant');
+const { ATTRIBUTE_TYPE, DEFAULT_VALUES } = require('../constants/constant');
 
 module.exports.DataHelper = (data, schema) => {
     const items = {};
 
-    for (const keyName in data) {
+    for (const keyName in schema) {
 
         if (!keyName) {
             continue;
         }
+
         if (!schema[keyName] || !("AttributeType" in schema[keyName])) {
             console.log(`${keyName} Not found in schema`);
             continue;
         }
+
+        // Adding default value if not found
+        if (data[keyName] === undefined || data[keyName] === null) {
+            if ("Default" in schema[keyName]) {
+                data[keyName] = schema[keyName].Default;
+            }
+            else {
+                data[keyName] = DEFAULT_VALUES[schema[keyName].AttributeType];
+            }
+        }
+
         // For Boolean convert the value to true | false.
         if (schema[keyName].AttributeType == ATTRIBUTE_TYPE.BOOL) {
             items[keyName] = {
@@ -39,6 +51,11 @@ module.exports.DataHelper = (data, schema) => {
 
         else if (schema[keyName].AttributeType == ATTRIBUTE_TYPE.LIST) {
             const arrData = this.ListHelper(keyName[data])
+
+            if (arrData.length == 0) {
+                continue;
+            }
+
             items[keyName] = {
                 [ATTRIBUTE_TYPE.LIST]: arrData
             }
@@ -51,7 +68,12 @@ module.exports.DataHelper = (data, schema) => {
                 console.log("*** Schema is required ***");
                 throw new Error("Schema is required for Map attribute Type");
             }
-            const mapData = this.DataHelper(data[keyName], schema[keyName].Schema)
+            const mapData = this.DataHelper(data[keyName], schema[keyName].Schema);
+
+            if (Object.keys(mapData).length == 0) {
+                continue;
+            }
+
             // this.MapHelper(data[keyName], schema[keyName].Schema);
             items[keyName] = {
                 [ATTRIBUTE_TYPE.MAP]: mapData
@@ -63,19 +85,29 @@ module.exports.DataHelper = (data, schema) => {
             schema[keyName].AttributeType == ATTRIBUTE_TYPE.BINARY_SET ||
             schema[keyName].AttributeType == ATTRIBUTE_TYPE.NUMBER_SET
         ) {
-            let valueData = []
+            let valueData = [];
+            if ( !data[keyName] || data[keyName].length === 0 ) {
+                continue;
+            }
+
             for (const val of data[keyName]) {
                 valueData.push({
-                    [schema[keyName].AttributeType]: `${val}`
+                    [schema[keyName].AttributeType[0]]: `${val}`
                 });
             }
+            items[keyName] ={ [schema[keyName].AttributeType]: valueData};
         }
     }
+
     return JSON.parse(JSON.stringify(items));
 }
 
 module.exports.ListHelper = (arrData) => {
     const data = [];
+
+    if (!arrData || arrData.length === 0) {
+        return [];
+    }
 
     for (const val of arrData) {
         if (typeof val == 'string') {
@@ -85,11 +117,6 @@ module.exports.ListHelper = (arrData) => {
         } else if (typeof val == 'number') {
             data.push({
                 [ATTRIBUTE_TYPE.NUMBER]: '' + val
-            });
-        }
-        else if (typeof val == 'object') {
-            data.push({
-                [ATTRIBUTE_TYPE.STRING]: JSON.stringify(val)
             });
         }
         else if (val == null || val == undefined) {
@@ -119,19 +146,38 @@ module.exports.MapHelper = (data, schema) => {
     const mapData = {};
 
     for (const subDocKey in data) {
-        if (typeof data[subDocKey] == 'number') {
+
+        if (
+            schema[subDocKey]?.AttributeType === ATTRIBUTE_TYPE.NUMBER ||
+            (
+                !schema[subDocKey] &&
+                typeof data[subDocKey] == 'number'
+            )
+        ) {
             mapData[subDocKey] = {
                 [ATTRIBUTE_TYPE.NUMBER]: '' + data[subDocKey]
             }
         }
 
-        else if (typeof data[subDocKey] == 'string') {
+        else if (
+            schema[subDocKey]?.AttributeType === ATTRIBUTE_TYPE.STRING ||
+            (
+                !schema[subDocKey] &&
+                typeof data[subDocKey] == 'string'
+            )
+        ) {
             mapData[subDocKey] = {
                 [ATTRIBUTE_TYPE.STRING]: data[subDocKey]
             }
         }
 
-        else if (typeof data[subDocKey] == 'boolean') {
+        else if (
+            schema[subDocKey]?.AttributeType === ATTRIBUTE_TYPE.BOOL ||
+            (
+                !schema[subDocKey] &&
+                typeof data[subDocKey] == 'boolean'
+            )
+        ) {
             mapData[subDocKey] = {
                 [ATTRIBUTE_TYPE.BOOL]: (!!data[subDocKey])
             }
@@ -143,15 +189,29 @@ module.exports.MapHelper = (data, schema) => {
             }
         }
 
-        else if (Array.isArray(data)) {
+        else if (
+            schema[subDocKey]?.AttributeType === ATTRIBUTE_TYPE.LIST ||
+            schema[subDocKey]?.AttributeType === ATTRIBUTE_TYPE.NUMBER_SET ||
+            schema[subDocKey]?.AttributeType === ATTRIBUTE_TYPE.STRING_SET ||
+            (
+                !schema[subDocKey] &&
+                Array.isArray(data)
+            )
+        ) {
             const arrData = this.ListHelper(data);
             mapData[subDocKey] = {
                 [ATTRIBUTE_TYPE.LIST]: arrData
             }
         }
 
-        else if (typeof data[subDocKey] == 'object') {
-            const subMapData = this.MapHelper(data[subDocKey]);
+        else if (
+            schema[subDocKey]?.AttributeType === ATTRIBUTE_TYPE.MAP ||
+            (
+                !schema[subDocKey] &&
+                typeof data[subDocKey] == 'object'
+            )
+        ) {
+            const subMapData = this.MapHelper(data[subDocKey], schema[subDocKey]?.Schema);
             mapData[subDocKey] = {
                 [ATTRIBUTE_TYPE.MAP]: subMapData
             }
