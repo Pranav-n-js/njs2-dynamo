@@ -53,10 +53,10 @@ class Schema {
         };
 
         /* Connection values are being assigned here */
-        if (!process.env['@njs2/dynamo']) {
-            throw new Error('REQUIRED @njs2-dynamo in environment variable');
+        if (!process.env['DYNAMO']) {
+            throw new Error('REQUIRED DYNAMO in environment variable');
         }
-        let envVariables = typeof process.env['@njs2/dynamo'] == 'object' ? process.env['@njs2/dynamo'] : JSON.parse(process.env['@njs2/dynamo']);
+        let envVariables = typeof process.env['DYNAMO'] == 'object' ? process.env['DYNAMO'] : JSON.parse(process.env['DYNAMO']);
         this.endpoint = envVariables.LOCAL_HOST;
         this.region = envVariables.AWS_REGION;
         this.accessKeyId = envVariables.AWS_ACCESS_KEY_ID;
@@ -65,6 +65,18 @@ class Schema {
     }
 
     connection() {
+        if (!this.region) {
+            throw new Error ('Required Region');
+        }
+
+        if (!this.accessKeyId) {
+            throw new Error('Required Access Key ID');
+        }
+
+        if (!this.secretAccessKey) {
+            throw new Error('Required Secret Access Key ID');
+        }
+
         AWS.config.update({
             region: this.region,
             accessKeyId: this.accessKeyId,
