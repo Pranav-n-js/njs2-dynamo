@@ -1,4 +1,4 @@
-const { BILLING_MODE, KEY_TYPE } = require('../constants/constant');
+const { BILLING_MODE, KEY_TYPE, UPDATE_TYPE } = require('../constants/constant');
 const { DataHelper, ExtractDataType } = require('../helper/dataHelper');
 const { generateUpdateExpression } = require('../helper/expressionHelper');
 
@@ -462,9 +462,18 @@ class Schema {
         }
     }
 
-    Update = async (updateData, Key, otherConditions = { whereEqualClause: {}, otherConditionalClause: {} }) => {
+    Update = async (updateData, Key, otherConditions = { whereEqualClause: {}, otherConditionalClause: {}}, updateType = UPDATE_TYPE.SET) => {
         try {
             const { DynamoDB } = this.connection();
+
+            const params = {
+                TableName: this.name,
+                Key: {
+                    [this.primaryKey]: {
+                        [this.schema[this.primaryKey].AttributeType]: Key
+                    }
+                },
+            };
 
             const updateKey = Object.keys(updateData);
             const updateValue = Object.values(updateData);
@@ -477,7 +486,11 @@ class Schema {
                 UpdateExpression,
                 ExpressionAttributeNames,
                 ExpressionAttributeValues
-            } = generateUpdateExpression(updateValue, updateKey, this.schema);
+            } = generateUpdateExpression(updateValue, updateKey, this.schema, updateType, null);
+
+            params.UpdateExpression = UpdateExpression;
+            params.ExpressionAttributeNames = ExpressionAttributeNames;
+            params.ExpressionAttributeValues = ExpressionAttributeValues;
 
             if (
                 otherConditions &&
@@ -530,20 +543,9 @@ class Schema {
                     ...conditionalExpression.ExpressionAttributeValues
                 }
             }
-            return await DynamoDB.updateItem({
-                TableName: this.name,
-                Key: {
-                    [this.primaryKey]: {
-                        [this.schema[this.primaryKey].AttributeType]: Key
-                    }
-                },
-                UpdateExpression,
-                ExpressionAttributeNames,
-                ExpressionAttributeValues,
-                ConditionExpression
-            }).promise();
+            return await DynamoDB.updateItem(params).promise();
         } catch (error) {
-            console.log("Error on Update(): ", new Error(error));
+            console.log("Error on Update(): ", error);
             throw new Error(error);
         }
     }

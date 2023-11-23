@@ -1,4 +1,5 @@
 const constants = {};
+
 constants.BILLING_MODE = {
     PAY_REQUEST: 'PAY_PER_REQUEST',
     PROVISIONED: 'PROVISIONED'
@@ -33,5 +34,12 @@ constants.DEFAULT_VALUES = {
     SS: [],
     NS: [],
     BS: [],
-}
+};
+
+constants.UPDATE_TYPE = {
+    SET: 1,
+    ADD: 2,
+    REMOVE: 3,
+};
+
 module.exports = constants;
