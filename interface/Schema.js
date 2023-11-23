@@ -451,13 +451,13 @@ class Schema {
         }
     }
 
-    RawBulk = async (params) => {
+    RawBulkInsert = async (params) => {
         try {
             const { DynamoDB } = this.connection();
 
             return await DynamoDB.batchWriteItem(params).promise();
         } catch (error) {
-            console.log("Error RawBulk(): ",new Error( error));
+            console.log("Error RawBulkInsert(): ",new Error( error));
             throw new Error(error);
         }
     }
