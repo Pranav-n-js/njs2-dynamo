@@ -1,6 +1,6 @@
 const { BILLING_MODE, KEY_TYPE, UPDATE_TYPE } = require('../constants/constant');
 const { DataHelper, ExtractDataType } = require('../helper/dataHelper');
-const { generateUpdateExpression } = require('../helper/expressionHelper');
+const { generateUpdateExpression, generateWhereCondition } = require('../helper/expressionHelper');
 
 const AWS = require('aws-sdk');
 
@@ -499,50 +499,21 @@ class Schema {
                     otherConditions.otherConditionalClause
                 )
             ) {
+                const conditionalExpression = generateWhereCondition(this.schema, otherConditions.whereEqualClause, otherConditions.otherConditionalClause);
 
-                const conditionalExpression = {};
-                const whereKeys = Object.keys(otherConditions.whereEqualClause);
-                const conditionalKeys = Object.keys(otherConditions.otherConditionalClause);
-
-                if (whereKeys.length > 0 || conditionalKeys.length > 0) {
-                    conditionalExpression.ConditionExpression = " ";
-                    conditionalExpression.ExpressionAttributeNames = {};
-                    conditionalExpression.ExpressionAttributeValues = {};
-                }
-
-                for (let i = 0; i < whereKeys.length; i++) {
-                    if (this.schema[whereKeys[i]]) {
-                        conditionalExpression.ConditionExpression += ` #uk${whereKeys[i]} = :uv${whereKeys[i]} `;
-                        conditionalExpression.ExpressionAttributeNames[`#uk${whereKeys[i]}`] = whereKeys[i];
-                        conditionalExpression.ExpressionAttributeValues[`:uv${whereKeys[i]}`] = whereEqualClause[whereKeys[i]];
-
-                        if (i <= whereKeys.length) {
-                            conditionalExpression.ConditionExpression += " AND "
-                        }
-                    }
-                }
-
-                for (let i = 0; i < conditionalKeys.length; i++) {
-                    if (this.schema[conditionalKeys[i]]) {
-                        conditionalExpression.ConditionExpression += ` #uk${conditionalKeys[i]} ${whereEqualClause[conditionalKeys[i]].condition} :uv${conditionalKeys[i]} `;
-                        conditionalExpression.ExpressionAttributeNames[`#uk${conditionalKeys[i]}`] = conditionalKeys[i];
-                        conditionalExpression.ExpressionAttributeValues[`:uv${conditionalKeys[i]}`] = whereEqualClause[conditionalKeys[i]].value;
-
-                        if (i <= whereKeys.length) {
-                            conditionalExpression.ConditionExpression += " AND "
-                        }
-                    }
-                }
-
-                ExpressionAttributeNames = {
-                    ...ExpressionAttributeNames,
-                    ...conditionalExpression.ConditionExpression
-                };
-                ExpressionAttributeValues = {
-                    ...ExpressionAttributeValues,
-                    ...conditionalExpression.ExpressionAttributeValues
+                if (conditionalExpression.ConditionExpression.length !== 0) {
+                    params.ExpressionAttributeNames = {
+                        ...params.ExpressionAttributeNames,
+                        ...conditionalExpression.ExpressionAttributeNames
+                    };
+                    params.ExpressionAttributeValues = {
+                        ...params.ExpressionAttributeValues,
+                        ...conditionalExpression.ExpressionAttributeValues
+                    };
+                    params.ConditionExpression = conditionalExpression.ConditionExpression;
                 }
             }
+
             return await DynamoDB.updateItem(params).promise();
         } catch (error) {
             console.log("Error on Update(): ", error);
