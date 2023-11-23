@@ -1,4 +1,5 @@
 const Schema = require('./interface/Schema');
+const constant = require('./constants/constant');
 class DYNAMOManager {
   // /**
   //  * Database Create Schema
@@ -19,6 +20,8 @@ class DYNAMOManager {
   // static createModel = createModel;
 
   static Schema = Schema;
+
+  static Constants = constant;
 }
 
 module.exports = DYNAMOManager;
